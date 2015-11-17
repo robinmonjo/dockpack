@@ -60,23 +60,23 @@ func (s *server) start(port string) error {
 	if err != nil {
 		return err
 	}
-	log.Info(fmt.Sprintf("Server listening on :%s", port))
+	log.Infof("Server listening on :%s :)", port)
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
-			log.Error(err)
+			log.Errorf("unable to accept connection %v", err)
 			continue
 		}
 
 		// From a standard TCP connection to an encrypted SSH connection
 		sshConn, newChans, _, err := ssh.NewServerConn(conn, s.config)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("ssh handshake failed, %v", err)
 			continue
 		}
 		defer sshConn.Close()
 
-		log.Info(fmt.Sprintf("connection from %s", sshConn.RemoteAddr()))
+		log.Infof("connection from %s", sshConn.RemoteAddr())
 		go func() {
 			for chanReq := range newChans {
 				go s.handleChanReq(chanReq)
@@ -93,7 +93,7 @@ func (s *server) handleChanReq(chanReq ssh.NewChannel) {
 
 	ch, reqs, err := chanReq.Accept()
 	if err != nil {
-		log.Error("fail to accept channel request", err)
+		log.Errorf("fail to accept channel request %v", err)
 		return
 	}
 
@@ -115,7 +115,6 @@ func (s *server) handleChanReq(chanReq ssh.NewChannel) {
 
 func (s *server) handleExec(ch ssh.Channel, req *ssh.Request) {
 	defer ch.Close()
-
 	args := strings.SplitN(string(req.Payload[4:]), " ", 2) //remove the 4 bytes of git protocol indicating line length
 	command := args[0]
 	repoName := strings.TrimSuffix(strings.TrimPrefix(args[1], "'/"), ".git'")
@@ -131,20 +130,23 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request) {
 	}
 
 	if !ok {
+		log.Infof("command %s not allowed on this server", command)
 		ch.Write([]byte(fmt.Sprintf("%s not allowed on this server\r\n", command)))
 		return
 	}
 
+	log.Infof("receiving %s command for repo %s", command, repoName)
+
 	repoPath, err := s.createRepoIfNeeded(repoName)
 	if err != nil {
-		log.Error(err)
+		log.Errorf("unable to create repo: %v", err)
 		ch.Write([]byte(err.Error() + "\r\n"))
 		return
 	}
 
 	//always inject pre-receive hook as http port may changes
 	if err := s.injectPreReceiveHook(repoName); err != nil {
-		log.Error(err)
+		log.Errorf("unable to inject pre-receive hook: %v", err)
 		ch.Write([]byte(err.Error() + "\r\n"))
 		return
 	}
@@ -152,11 +154,13 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request) {
 	cmd := exec.Command(command, repoPath)
 	wg, err := attachCmd(cmd, ch)
 	if err != nil {
+		log.Errorf("unable to attach command stdio: %v", err)
 		ch.Write([]byte(err.Error() + "\r\n"))
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
+		log.Errorf("unable to start command: %v", err)
 		ch.Write([]byte(err.Error() + "\r\n"))
 		return
 	}

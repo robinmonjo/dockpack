@@ -1,11 +1,34 @@
 # dockpack
 
-Next steps:
-- containerize the app (requires curl and git), need to install the latest way to run docker on mac
-- git archive in the pre-receive hook
-- build the app in a container
-- push the container on a docker hub
+## Running
 
-## Requirements in docker image:
-- git
-- curl
+To run dockpack, you may pull the last image from the docker-hub (when it will exist), and start it with this command:
+
+````bash
+mkdir -p ~/sandbox
+export PORT=9999
+docker run -e DOCKER_HUB_USERNAME="xxx" -e DOCKER_HUB_PASSWORD="yyy" -v /var/run/docker.sock:/var/run/docker.sock -v ~/sandbox:/sandbox -p $PORT:$PORT robinmonjo/dockpack:1.0
+````
+
+This will start a git server listening on $PORT. You can then add it as a remote on one of your project:
+
+````bash
+cd my/super/project
+git remote add $remote ssh://$hostname:$PORT/packman.git
+git push $remote master
+````
+
+All git repository and buildpacks cache will be persisted in the sandbox folder on the host.
+
+## Development
+
+You can dockerize the app using `make dockerize` and the just start the container and push onto it
+
+## TODOs
+
+Next steps:
+- private or public push
+- authentication
+- make sure to reject the push if the build / upload failed
+- handle custom registry
+- lock concurrent build (probably using a git command, or writting a file, with a mutex)

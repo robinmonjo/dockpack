@@ -90,9 +90,11 @@ func handleApp(w http.ResponseWriter, name, ref string) {
 	fw.Write([]byte(fmt.Sprintf("starting build for app %s ref %s\n", name, ref)))
 	b, err := newBuilder(fw, name, ref)
 	if err != nil {
+		log.Errorf("unable to instanciate builder: %v", err)
 		fw.Write([]byte(fmt.Sprintf("unable to instanciate builder: %v", err)))
 	}
 	if err := b.build(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError) //THIS CAN't WORK we need trailing header
 		log.Error(err)
 	}
 }
