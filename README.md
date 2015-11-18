@@ -30,5 +30,4 @@ Next steps:
 - private or public push
 - authentication
 - make sure to reject the push if the build / upload failed
-- handle custom registry
-- lock concurrent build (probably using a git command, or writting a file, with a mutex)
+- handle custom registry (only docker hub supported for now)
