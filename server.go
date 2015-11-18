@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"text/template"
 
 	log "github.com/Sirupsen/logrus"
@@ -18,8 +17,9 @@ import (
 )
 
 const (
-	pushCmd = "git-receive-pack"
-	pullCmd = "git-upload-pack"
+	pushCmd  = "git-receive-pack"
+	pullCmd  = "git-upload-pack"
+	lockFile = ".dockpack_lock"
 )
 
 type server struct {
@@ -131,43 +131,70 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request) {
 
 	if !ok {
 		log.Infof("command %s not allowed on this server", command)
-		ch.Write([]byte(fmt.Sprintf("%s not allowed on this server\r\n", command)))
+		writePktLine(fmt.Sprintf("%s not allowed on this server"), ch)
 		return
 	}
 
 	log.Infof("receiving %s command for repo %s", command, repoName)
 
-	repoPath, err := s.createRepoIfNeeded(repoName)
+	repoPath, err := s.prepareRepo(repoName)
 	if err != nil {
 		log.Errorf("unable to create repo: %v", err)
-		ch.Write([]byte(err.Error() + "\r\n"))
+		writePktLine(err.Error(), ch)
 		return
 	}
 
-	//always inject pre-receive hook as http port may changes
-	if err := s.injectPreReceiveHook(repoName); err != nil {
-		log.Errorf("unable to inject pre-receive hook: %v", err)
-		ch.Write([]byte(err.Error() + "\r\n"))
-		return
-	}
+	defer func() {
+		if err := s.unlockRepo(repoName); err != nil {
+			log.Errorf("unable to unlock repo: %v", err)
+			writePktLine(err.Error(), ch)
+		}
+	}()
 
 	cmd := exec.Command(command, repoPath)
 	wg, err := attachCmd(cmd, ch)
 	if err != nil {
 		log.Errorf("unable to attach command stdio: %v", err)
-		ch.Write([]byte(err.Error() + "\r\n"))
+		writePktLine(err.Error(), ch)
 		return
 	}
 
 	if err := cmd.Start(); err != nil {
 		log.Errorf("unable to start command: %v", err)
-		ch.Write([]byte(err.Error() + "\r\n"))
+		writePktLine(err.Error(), ch)
 		return
 	}
 	wg.Wait()
 	syscallErr := cmd.Wait()
 
 	ch.SendRequest("exit-status", false, ssh.Marshal(exitStatus(syscallErr)))
+}
+
+func (s *server) prepareRepo(repoName string) (string, error) {
+	var lock = &sync.Mutex{}
+	lock.Lock()
+	defer lock.Unlock()
+
+	repoPath, err := s.createRepoIfNeeded(repoName)
+	if err != nil {
+		return "", err
+	}
+
+	var err2 error
+	if err := s.lockRepo(repoName); err != nil {
+		return "", err
+	}
+	defer func() {
+		if err2 != nil {
+			if err := s.unlockRepo(repoName); err != nil {
+				log.Errorf("unable to unlock repo: %v", err)
+			}
+		}
+	}()
+
+	//always inject pre-receive hook as http port may changes
+	err2 = s.injectPreReceiveHook(repoName)
+	return repoPath, err2
 }
 
 func (s *server) createRepoIfNeeded(name string) (string, error) {
@@ -229,6 +256,23 @@ exit 0
 	return template.Must(template.New("hook").Parse(script)).Execute(f, data)
 }
 
+func (s *server) lockFilePath(appName string) string {
+	return filepath.Join(s.workingDir, appName, lockFile)
+}
+
+func (s *server) lockRepo(appName string) error {
+	lockFilePath := s.lockFilePath(appName)
+	if _, err := os.Stat(lockFilePath); err == nil {
+		return fmt.Errorf("repo is locked, try again later")
+	}
+	_, err := os.Create(lockFilePath)
+	return err
+}
+
+func (s *server) unlockRepo(appName string) error {
+	return os.RemoveAll(s.lockFilePath(appName))
+}
+
 func attachCmd(cmd *exec.Cmd, ch ssh.Channel) (*sync.WaitGroup, error) {
 	var wg sync.WaitGroup
 	wg.Add(3)
@@ -262,20 +306,4 @@ func attachCmd(cmd *exec.Cmd, ch ssh.Channel) (*sync.WaitGroup, error) {
 	}()
 
 	return &wg, nil
-}
-
-type exitStatusResp struct {
-	Status uint32
-}
-
-func exitStatus(err error) exitStatusResp {
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if status, ok := exitErr.Sys().(syscall.WaitStatus); ok {
-				return exitStatusResp{uint32(status.ExitStatus())}
-			}
-		}
-		return exitStatusResp{1} //not a syscall err, but err anyway
-	}
-	return exitStatusResp{0}
 }
