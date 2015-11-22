@@ -27,6 +27,8 @@ You can dockerize the app using `make dockerize` and the just start the containe
 ## TODOs
 
 Next steps:
+- pull herokuish image before otherwise error on first push
+- allow to pass extra env to the build container :( apparently MC needs it during asset pipeline ...
 - private or public push
 - authentication
 - make sure to reject the push if the build / upload failed
