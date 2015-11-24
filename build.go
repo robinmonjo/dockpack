@@ -37,6 +37,22 @@ func newBuilder(w io.Writer, appName, ref string) (*builder, error) {
 
 func (b *builder) build() error {
 
+	//check if herokuish latest exists
+	authOpts := docker.AuthConfiguration{
+		Username: os.Getenv("DOCKER_HUB_USERNAME"),
+		Password: os.Getenv("DOCKER_HUB_PASSWORD"),
+	}
+
+	pullOpts := docker.PullImageOptions{
+		Repository: buildImage,
+	}
+
+	b.writer.Write([]byte("-----> Pulling build image if requiured ...\r\n"))
+
+	if err := b.client.PullImage(pullOpts, authOpts); err != nil {
+		return err
+	}
+
 	//create a container for the build
 	b.writer.Write([]byte("-----> Preparing build container\r\n"))
 	createOpts := docker.CreateContainerOptions{
@@ -172,11 +188,6 @@ func (b *builder) build() error {
 	pushOpts := docker.PushImageOptions{
 		Name: imgName,
 		Tag:  tag,
-	}
-
-	authOpts := docker.AuthConfiguration{
-		Username: os.Getenv("DOCKER_HUB_USERNAME"),
-		Password: os.Getenv("DOCKER_HUB_PASSWORD"),
 	}
 
 	b.writer.Write([]byte("-----> Pushing image to the registry (this may takes some times)\r\n"))
