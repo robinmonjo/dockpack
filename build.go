@@ -11,8 +11,9 @@ import (
 )
 
 const (
-	endpoint   = "unix:///var/run/docker.sock"
-	buildImage = "gliderlabs/herokuish:latest"
+	endpoint      = "unix:///var/run/docker.sock"
+	buildImage    = "gliderlabs/herokuish"
+	buildImageTag = "latest"
 )
 
 type builder struct {
@@ -45,6 +46,7 @@ func (b *builder) build() error {
 
 	pullOpts := docker.PullImageOptions{
 		Repository: buildImage,
+		Tag:        buildImageTag,
 	}
 
 	b.writer.Write([]byte("-----> Pulling build image if requiured ...\r\n"))
@@ -58,7 +60,7 @@ func (b *builder) build() error {
 	createOpts := docker.CreateContainerOptions{
 		Name: fmt.Sprintf("%s_%s", b.appName, b.ref),
 		Config: &docker.Config{
-			Image: buildImage,
+			Image: fmt.Sprintf("%s:%s", buildImage, buildImageTag),
 			Cmd:   []string{"/build"},
 		},
 		HostConfig: &docker.HostConfig{},
@@ -114,6 +116,8 @@ func (b *builder) build() error {
 	}
 
 	//start the container, this will start the build
+	//TODO add env needed for the build (dcdget api)
+
 	if err := b.client.StartContainer(container.ID, &docker.HostConfig{}); err != nil {
 		return err
 	}
