@@ -49,7 +49,7 @@ func (b *builder) build() error {
 		Tag:        buildImageTag,
 	}
 
-	b.writer.Write([]byte("-----> Pulling build image if requiured ...\r\n"))
+	b.writer.Write([]byte("-----> Pulling build image if required ...\r\n"))
 
 	if err := b.client.PullImage(pullOpts, authOpts); err != nil {
 		return err

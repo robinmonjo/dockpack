@@ -27,9 +27,6 @@ You can dockerize the app using `make dockerize` and the just start the containe
 ## TODOs
 
 Next steps:
-- allow to pass extra env to the build container :( apparently MC needs it during asset pipeline ...
-- check why the build image is being pulled every time
-- refactor builder so it's smarter and can get env from dcdget for prod container
 - private or public push
 - authentication
 - make sure to reject the push if the build / upload failed
