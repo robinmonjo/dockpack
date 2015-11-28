@@ -27,7 +27,4 @@ You can dockerize the app using `make dockerize` and the just start the containe
 ## TODOs
 
 Next steps:
-- private or public push
 - authentication
-- make sure to reject the push if the build / upload failed
-- handle custom registry (only docker hub supported for now)

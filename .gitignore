@@ -2,4 +2,5 @@ dockpack
 release
 .vagrant
 vendor
-keys
+id_rsa
+id_rsa.pub
