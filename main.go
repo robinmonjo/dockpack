@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
-	"strings"
 
 	log "github.com/Sirupsen/logrus"
 )
@@ -16,6 +14,10 @@ var (
 	version  string //set by the makefile
 	sshPort  string
 	httpPort string
+)
+
+const (
+	buildErrorPrefix = "[BUILD ERROR]"
 )
 
 func init() {
@@ -50,8 +52,7 @@ func main() {
 	})
 
 	go func() {
-		err := http.ListenAndServe(":"+httpPort, nil)
-		if err != nil {
+		if err := http.ListenAndServe(":"+httpPort, nil); err != nil {
 			log.Fatal(err)
 		}
 	}()
@@ -91,20 +92,10 @@ func handleApp(w http.ResponseWriter, name, ref string) {
 	b, err := newBuilder(fw, name, ref)
 	if err != nil {
 		log.Errorf("unable to instanciate builder: %v", err)
-		fw.Write([]byte(fmt.Sprintf("unable to instanciate builder: %v", err)))
+		fw.Write([]byte(fmt.Sprintf("unable to instanciate builder: %v\n", err)))
 	}
 	if err := b.build(); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError) //THIS CAN't WORK we need trailing header
-		log.Error(err)
+		log.Errorf("build failed: %v", err)
+		fw.Write([]byte(fmt.Sprintf("%s - %v\n", buildErrorPrefix, err)))
 	}
-}
-
-//return a free port
-func freePort() (string, error) {
-	l, err := net.Listen("tcp", ":0")
-	if err != nil {
-		return "", err
-	}
-	defer l.Close()
-	return strings.TrimPrefix(l.Addr().String(), "[::]:"), nil
 }

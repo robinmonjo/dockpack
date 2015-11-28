@@ -235,22 +235,28 @@ while read old_ref new_ref ref_name
 do
   if [[ $ref_name = "refs/heads/master" ]]; then
     git archive -o {{.ArchiveFolder}}/{{.AppName}}_$new_ref.tar $new_ref
-    curl -N -s -m 3600 -X PUT -H 'Content-Type: application/json' -d "{\"app_name\": \"{{.AppName}}\", \"ref\": \"$new_ref\"}" {{.Endpoint}}
+    curl -N -s -m 3600 -X PUT -H 'Content-Type: application/json' -d "{\"app_name\": \"{{.AppName}}\", \"ref\": \"$new_ref\"}" {{.Endpoint}} | tee {{.BuildLogs}}
+		cat {{.BuildLogs}} | grep -e "{{.BuildErrorPrefix}}" &>/dev/null
+    if [ $? -eq 0 ]; then exit 1; fi
   fi
 done
 
 exit 0
   `
 	type hookData struct {
-		AppName       string
-		Endpoint      string
-		ArchiveFolder string
+		AppName          string
+		Endpoint         string
+		ArchiveFolder    string
+		BuildLogs        string
+		BuildErrorPrefix string
 	}
 
 	data := hookData{
-		AppName:       appName,
-		Endpoint:      fmt.Sprintf("localhost:%s", httpPort),
-		ArchiveFolder: s.workingDir,
+		AppName:          appName,
+		Endpoint:         fmt.Sprintf("localhost:%s", httpPort),
+		ArchiveFolder:    s.workingDir,
+		BuildLogs:        filepath.Join(s.workingDir, fmt.Sprintf("%s.log", appName)),
+		BuildErrorPrefix: buildErrorPrefix,
 	}
 
 	return template.Must(template.New("hook").Parse(script)).Execute(f, data)

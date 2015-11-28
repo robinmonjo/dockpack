@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"io"
+	"net"
 	"os/exec"
+	"strings"
 	"syscall"
 )
 
@@ -27,4 +29,14 @@ func writePktLine(line string, w io.Writer) (int, error) {
 	payload := []byte(line)
 	head := []byte(fmt.Sprintf("%04x", len(payload)+4))
 	return w.Write(append(head, payload...))
+}
+
+//return a free port
+func freePort() (string, error) {
+	l, err := net.Listen("tcp", ":0")
+	if err != nil {
+		return "", err
+	}
+	defer l.Close()
+	return strings.TrimPrefix(l.Addr().String(), "[::]:"), nil
 }
