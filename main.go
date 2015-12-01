@@ -17,7 +17,7 @@ var (
 )
 
 const (
-	buildErrorPrefix = "[BUILD ERROR]"
+	buildErrorPrefix = "BUILD ERROR"
 )
 
 func init() {

@@ -30,3 +30,4 @@ The error checking doesn't work, it always say it fails event if it doesn't
 
 Next steps:
 - authentication
+- smart taging to have versions + auto cleanup

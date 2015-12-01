@@ -165,7 +165,7 @@ func (b *builder) build() error {
 	}
 
 	//commit the container and upload the image
-	tag := b.ref
+	tag := "latest" //TODO smart tagging
 	imgName := fmt.Sprintf("robinmonjo/%s", b.appName)
 	ciOpts := docker.CommitContainerOptions{
 		Container:  container.ID,
