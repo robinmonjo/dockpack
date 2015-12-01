@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"time"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/fsouza/go-dockerclient"
@@ -164,8 +165,8 @@ func (b *builder) build() error {
 		return err
 	}
 
-	//commit the container and upload the image
-	tag := "latest" //TODO smart tagging
+	//commit the container and upload the image, include a timestamp in the tag so it's ordered
+	tag := fmt.Sprintf("%d_%s", time.Now().Unix(), b.ref)
 	imgName := fmt.Sprintf("robinmonjo/%s", b.appName)
 	ciOpts := docker.CommitContainerOptions{
 		Container:  container.ID,
@@ -194,7 +195,7 @@ func (b *builder) build() error {
 		Tag:  tag,
 	}
 
-	b.writer.Write([]byte("-----> Pushing image to the registry (this may takes some times)\r\n"))
+	b.writer.Write([]byte(fmt.Sprintf("-----> Pushing image %s:%s to the registry (this may takes some times)\r\n", imgName, tag)))
 
 	return b.client.PushImage(pushOpts, authOpts)
 }
