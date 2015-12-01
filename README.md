@@ -26,5 +26,7 @@ You can dockerize the app using `make dockerize` and the just start the containe
 
 ## TODOs
 
+The error checking doesn't work, it always say it fails event if it doesn't
+
 Next steps:
 - authentication
