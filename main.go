@@ -93,9 +93,16 @@ func handleApp(w http.ResponseWriter, name, ref string) {
 	if err != nil {
 		log.Errorf("unable to instanciate builder: %v", err)
 		fw.Write([]byte(fmt.Sprintf("unable to instanciate builder: %v\n", err)))
+		return
 	}
-	if err := b.build(); err != nil {
+
+	buildResult, err := b.build()
+	if err != nil {
 		log.Errorf("build failed: %v", err)
 		fw.Write([]byte(fmt.Sprintf("%s - %v\n", buildErrorPrefix, err)))
+		return
 	}
+
+	//build succeedeed
+	buildResult = nil
 }

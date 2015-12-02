@@ -24,6 +24,11 @@ type builder struct {
 	writer  io.Writer
 }
 
+type buildResult struct {
+	imageName string
+	imageTag  string
+}
+
 func newBuilder(w io.Writer, appName, ref string) (*builder, error) {
 	client, err := docker.NewClient(endpoint)
 	if err != nil {
@@ -37,7 +42,7 @@ func newBuilder(w io.Writer, appName, ref string) (*builder, error) {
 	}, nil
 }
 
-func (b *builder) build() error {
+func (b *builder) build() (*buildResult, error) {
 
 	//check if herokuish latest exists
 	authOpts := docker.AuthConfiguration{
@@ -53,7 +58,7 @@ func (b *builder) build() error {
 	b.writer.Write([]byte("-----> Pulling build image if required ...\r\n"))
 
 	if err := b.client.PullImage(pullOpts, authOpts); err != nil {
-		return err
+		return nil, err
 	}
 
 	//create a container for the build
@@ -68,7 +73,7 @@ func (b *builder) build() error {
 	}
 	container, err := b.client.CreateContainer(createOpts)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	//destroy it when finish
@@ -97,7 +102,7 @@ func (b *builder) build() error {
 	for src, dest := range uploads {
 		srcTar, err := os.Open(src)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		defer srcTar.Close()
 
@@ -107,20 +112,18 @@ func (b *builder) build() error {
 		}
 
 		if err := b.client.UploadToContainer(container.ID, uploadOpts); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	//tar can be removed, it's inside the build container
 	if err := os.RemoveAll(srcTarPath); err != nil {
-		return err
+		return nil, err
 	}
 
 	//start the container, this will start the build
-	//TODO add env needed for the build (dcdget api)
-
 	if err := b.client.StartContainer(container.ID, &docker.HostConfig{}); err != nil {
-		return err
+		return nil, err
 	}
 
 	//get back container logs and write them directly back to the client
@@ -134,27 +137,27 @@ func (b *builder) build() error {
 	}
 
 	if err := b.client.Logs(logOpts); err != nil {
-		return err
+		return nil, err
 	}
 
 	//wait until the container stops and check if everything went fine
 	statusCode, err := b.client.WaitContainer(container.ID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if statusCode != 0 {
-		return fmt.Errorf("build container finished with status code: %d", statusCode)
+		return nil, fmt.Errorf("build container finished with status code: %d", statusCode)
 	}
 
 	//save the cache for next build
 	b.writer.Write([]byte("-----> Saving cache for next build\r\n"))
 	if err := os.RemoveAll(cachePath); err != nil {
-		return err
+		return nil, err
 	}
 	cacheTar, err := os.Create(cachePath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer cacheTar.Close()
 	dlOpts := docker.DownloadFromContainerOptions{
@@ -162,7 +165,7 @@ func (b *builder) build() error {
 		OutputStream: cacheTar,
 	}
 	if err := b.client.DownloadFromContainer(container.ID, dlOpts); err != nil {
-		return err
+		return nil, err
 	}
 
 	//commit the container and upload the image, include a timestamp in the tag so it's ordered
@@ -179,7 +182,7 @@ func (b *builder) build() error {
 		},
 	}
 	if _, err := b.client.CommitContainer(ciOpts); err != nil {
-		return err
+		return nil, err
 	}
 
 	//prepare the image to be destroyed
@@ -197,5 +200,5 @@ func (b *builder) build() error {
 
 	b.writer.Write([]byte(fmt.Sprintf("-----> Pushing image %s:%s to the registry (this may takes some times)\r\n", imgName, tag)))
 
-	return b.client.PushImage(pushOpts, authOpts)
+	return &buildResult{imageName: imgName, imageTag: tag}, b.client.PushImage(pushOpts, authOpts)
 }
