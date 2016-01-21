@@ -35,6 +35,7 @@ func TestGitPush(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v, output: %q", err, out)
 	}
+	fmt.Println(out)
 }
 
 //TODO: make sure only master branch is pushed
