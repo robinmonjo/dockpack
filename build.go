@@ -200,5 +200,11 @@ func (b *builder) build() (*buildResult, error) {
 
 	b.writer.Write([]byte(fmt.Sprintf("-----> Pushing image %s:%s to the registry (this may takes some times)\r\n", imgName, tag)))
 
-	return &buildResult{imageName: imgName, imageTag: tag}, b.client.PushImage(pushOpts, authOpts)
+	if os.Getenv("DOCKPACK_ENV") == "testing" {
+		b.writer.Write([]byte(fmt.Sprintf("-----> Test, skipping push\r\n", imgName, tag)))
+	} else {
+		err = b.client.PushImage(pushOpts, authOpts)
+	}
+
+	return &buildResult{imageName: imgName, imageTag: tag}, err
 }

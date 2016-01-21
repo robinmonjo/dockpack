@@ -12,10 +12,13 @@ dockerize: id_rsa
 	docker build -t $(IMAGE_NAME):$(VERSION) .
 	
 id_rsa:
-	ssh-keygen -t rsa -b 4096 -C "dockpack@mail.com" -f id_rsa -N ""
+	ssh-keygen -t rsa -b 2048 -C "dockpack@mail.com" -f id_rsa -N ""
 
 clean:
 	rm -rf ./dockpack ./release ./vendor/pkg
+	
+test: dockerize
+	DOCKPACK_IMAGE=$(IMAGE_NAME):$(VERSION) GOPATH=$(GOPATH) bash -c 'cd integration && go test'
 
 vendor:
 	GOPATH=`pwd`/vendor sh vendor.sh

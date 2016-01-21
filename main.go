@@ -96,13 +96,12 @@ func handleApp(w http.ResponseWriter, name, ref string) {
 		return
 	}
 
-	buildResult, err := b.build()
-	if err != nil {
+	if _, err := b.build(); err != nil {
 		log.Errorf("build failed: %v", err)
 		fw.Write([]byte(fmt.Sprintf("%s - %v\n", buildErrorPrefix, err)))
 		return
 	}
 
 	//build succeedeed
-	buildResult = nil
+
 }
