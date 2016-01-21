@@ -30,7 +30,8 @@ If you pass the `WEB_HOOK` env to the container, a HTTP PUT request with the fol
 
 ## Development
 
-You can dockerize the app using `make dockerize` and then just start the container and push onto it
+- You can dockerize the app using `make dockerize` and then just start the container and push onto it
+- run integration tests using `make test`
 
 ## TODOs
 
