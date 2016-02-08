@@ -25,8 +25,9 @@ type builder struct {
 }
 
 type buildResult struct {
-	imageName string
-	imageTag  string
+	AppName   string
+	ImageName string
+	ImageTag  string
 }
 
 func newBuilder(w io.Writer, appName, ref string) (*builder, error) {
@@ -206,5 +207,5 @@ func (b *builder) build() (*buildResult, error) {
 		err = b.client.PushImage(pushOpts, authOpts)
 	}
 
-	return &buildResult{imageName: imgName, imageTag: tag}, err
+	return &buildResult{AppName: b.appName, ImageName: imgName, ImageTag: tag}, err
 }

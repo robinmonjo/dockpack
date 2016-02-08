@@ -2,6 +2,8 @@ package integration
 
 import (
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"testing"
 )
@@ -19,13 +21,25 @@ func TestGitPush(t *testing.T) {
 		}
 	}
 
+	//mock a git repository
 	dockerHost := os.Getenv("DOCKER_H")
-
 	remote := fmt.Sprintf("ssh://%s:%s/test_app.git", dockerHost, sshPort)
 	dir, err := mockGitRepo(remote)
 	defer os.RemoveAll(dir)
 
-	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), os.Getenv("DOCKPACK_IMAGE"))
+	//start a http server to get back the hook
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		body, _ := ioutil.ReadAll(r.Body)
+		fmt.Println(string(body))
+	})
+
+	go func() {
+		if err := http.ListenAndServe(":9999", nil); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), "http://192.168.99.1", os.Getenv("DOCKPACK_IMAGE"))
 	if err != nil {
 		t.Fatal(err)
 	}

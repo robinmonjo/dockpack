@@ -96,9 +96,22 @@ func handleApp(w http.ResponseWriter, name, ref string) {
 		return
 	}
 
-	if _, err := b.build(); err != nil {
+	br, err := b.build()
+	if err != nil {
 		log.Errorf("build failed: %v", err)
 		fw.Write([]byte(fmt.Sprintf("%s - %v\n", buildErrorPrefix, err)))
+		return
+	}
+
+	hook := os.Getenv("WEB_HOOK")
+	if hook == "" {
+		return
+	}
+
+	if err := put(hook, br, fw); err != nil {
+		m := fmt.Sprintf("unable to notify hook %q: %v", hook, err)
+		log.Errorf(m)
+		fw.Write([]byte(m))
 		return
 	}
 
