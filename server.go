@@ -13,13 +13,15 @@ import (
 	"text/template"
 
 	log "github.com/Sirupsen/logrus"
+	_ "github.com/robinmonjo/dockpack/auth"
 	"golang.org/x/crypto/ssh"
 )
 
 const (
-	pushCmd  = "git-receive-pack"
-	pullCmd  = "git-upload-pack"
-	lockFile = ".dockpack_lock"
+	pushCmd      = "git-receive-pack"
+	pullCmd      = "git-upload-pack"
+	lockFile     = ".dockpack_lock"
+	publicKeyKey = "pub_key"
 )
 
 type server struct {
@@ -30,7 +32,15 @@ type server struct {
 func newServer() (*server, error) {
 	config := &ssh.ServerConfig{}
 	config.PublicKeyCallback = func(c ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-		return &ssh.Permissions{}, nil
+		//storing public key for authorization processing
+		pk := ssh.MarshalAuthorizedKey(key)
+		pk = pk[:len(pk)-1] //remove the trailling \n
+
+		keyInfo := map[string]string{
+			publicKeyKey: string(pk),
+		}
+
+		return &ssh.Permissions{CriticalOptions: keyInfo}, nil
 	}
 
 	keyPath := "./id_rsa"
@@ -79,13 +89,13 @@ func (s *server) start(port string) error {
 		log.Infof("connection from %s", sshConn.RemoteAddr())
 		go func() {
 			for chanReq := range newChans {
-				go s.handleChanReq(chanReq)
+				go s.handleChanReq(chanReq, sshConn.Permissions.CriticalOptions[publicKeyKey])
 			}
 		}()
 	}
 }
 
-func (s *server) handleChanReq(chanReq ssh.NewChannel) {
+func (s *server) handleChanReq(chanReq ssh.NewChannel, publicKey string) {
 	if chanReq.ChannelType() != "session" {
 		chanReq.Reject(ssh.Prohibited, "channel type is not a session")
 		return
@@ -103,7 +113,7 @@ func (s *server) handleChanReq(chanReq ssh.NewChannel) {
 		switch req.Type {
 		case "env":
 		case "exec":
-			s.handleExec(ch, req)
+			s.handleExec(ch, req, publicKey)
 			return
 		default:
 			ch.Write([]byte(fmt.Sprintf("request type %q not allowed\r\n", req.Type)))
@@ -113,11 +123,13 @@ func (s *server) handleChanReq(chanReq ssh.NewChannel) {
 	}
 }
 
-func (s *server) handleExec(ch ssh.Channel, req *ssh.Request) {
+func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, publicKey string) {
 	defer ch.Close()
 	args := strings.SplitN(string(req.Payload[4:]), " ", 2) //remove the 4 bytes of git protocol indicating line length
 	command := args[0]
 	repoName := strings.TrimSuffix(strings.TrimPrefix(args[1], "'/"), ".git'")
+
+	//TODO if auth is activated, auth the user, we have the publicKey :)
 
 	//check if allowed command
 	allowed := []string{pullCmd, pushCmd}

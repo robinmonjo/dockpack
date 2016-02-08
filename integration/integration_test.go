@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -12,7 +13,7 @@ const (
 	sshPort = "2222"
 )
 
-// test a full git push without going through the push process
+// test a full git push without going through the push image process
 func TestGitPush(t *testing.T) {
 
 	for _, env := range []string{"DOCKER_H", "DOCKER_HUB_USERNAME", "DOCKER_HUB_PASSWORD", "DOCKPACK_IMAGE"} {
@@ -28,9 +29,13 @@ func TestGitPush(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	//start a http server to get back the hook
+	var wg sync.WaitGroup
+	wg.Add(1)
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		body, _ := ioutil.ReadAll(r.Body)
 		fmt.Println(string(body))
+		wg.Done()
 	})
 
 	go func() {
@@ -39,7 +44,7 @@ func TestGitPush(t *testing.T) {
 		}
 	}()
 
-	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), "http://192.168.99.1", os.Getenv("DOCKPACK_IMAGE"))
+	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +54,9 @@ func TestGitPush(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error: %v, output: %q", err, out)
 	}
-	fmt.Println(out)
+
+	//wait for the hook to be sent
+	wg.Wait()
 }
 
 //TODO: make sure only master branch is pushed

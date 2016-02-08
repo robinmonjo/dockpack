@@ -19,6 +19,9 @@ clean:
 	
 test: dockerize
 	DOCKPACK_IMAGE=$(IMAGE_NAME):$(VERSION) GOPATH=$(GOPATH) bash -c 'cd integration && go test'
+	
+tests:
+	GOPATH=$(GOPATH) bash -c 'cd auth && go test'
 
 vendor:
 	GOPATH=`pwd`/vendor sh vendor.sh
