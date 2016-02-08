@@ -13,7 +13,7 @@ import (
 	"text/template"
 
 	log "github.com/Sirupsen/logrus"
-	_ "github.com/robinmonjo/dockpack/auth"
+	"github.com/robinmonjo/dockpack/auth"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -129,7 +129,19 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, publicKey string) 
 	command := args[0]
 	repoName := strings.TrimSuffix(strings.TrimPrefix(args[1], "'/"), ".git'")
 
-	//TODO if auth is activated, auth the user, we have the publicKey :)
+	//auth the user
+	if os.Getenv("GITHUB_AUTH") == "true" {
+		gauth, err := auth.NewGithubAuth()
+		if err != nil {
+			writePktLine(fmt.Sprintf("github auth error, contact an administrator: %s", err), ch)
+			return
+		}
+
+		if err := gauth.Authenticate(publicKey, repoName); err != nil {
+			writePktLine(fmt.Sprintf("github auth failed: %s", err), ch)
+			return
+		}
+	}
 
 	//check if allowed command
 	allowed := []string{pullCmd, pushCmd}
@@ -143,7 +155,7 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, publicKey string) 
 
 	if !ok {
 		log.Infof("command %s not allowed on this server", command)
-		writePktLine(fmt.Sprintf("%s not allowed on this server"), ch)
+		writePktLine(fmt.Sprintf("%s not allowed on this server", command), ch)
 		return
 	}
 
