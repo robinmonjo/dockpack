@@ -17,7 +17,7 @@ id_rsa:
 clean:
 	rm -rf ./dockpack ./release ./vendor/pkg
 	
-test: dockerize
+integration: dockerize
 	DOCKPACK_IMAGE=$(IMAGE_NAME):$(VERSION) GOPATH=$(GOPATH) bash -c 'cd integration && go test'
 	
 tests:
