@@ -32,15 +32,16 @@ type server struct {
 func newServer() (*server, error) {
 	config := &ssh.ServerConfig{}
 	config.PublicKeyCallback = func(c ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-		//storing public key for authorization processing
+		//storing public key and user for authorization processing
 		pk := ssh.MarshalAuthorizedKey(key)
 		pk = pk[:len(pk)-1] //remove the trailling \n
 
-		keyInfo := map[string]string{
-			publicKeyKey: string(pk),
+		authInfo := map[string]string{
+			"user":       c.User(),
+			"public_key": string(pk),
 		}
 
-		return &ssh.Permissions{CriticalOptions: keyInfo}, nil
+		return &ssh.Permissions{CriticalOptions: authInfo}, nil
 	}
 
 	keyPath := "./id_rsa"
@@ -89,13 +90,13 @@ func (s *server) start(port string) error {
 		log.Infof("connection from %s", sshConn.RemoteAddr())
 		go func() {
 			for chanReq := range newChans {
-				go s.handleChanReq(chanReq, sshConn.Permissions.CriticalOptions[publicKeyKey])
+				go s.handleChanReq(chanReq, sshConn.Permissions.CriticalOptions)
 			}
 		}()
 	}
 }
 
-func (s *server) handleChanReq(chanReq ssh.NewChannel, publicKey string) {
+func (s *server) handleChanReq(chanReq ssh.NewChannel, authInfo map[string]string) {
 	if chanReq.ChannelType() != "session" {
 		chanReq.Reject(ssh.Prohibited, "channel type is not a session")
 		return
@@ -113,7 +114,7 @@ func (s *server) handleChanReq(chanReq ssh.NewChannel, publicKey string) {
 		switch req.Type {
 		case "env":
 		case "exec":
-			s.handleExec(ch, req, publicKey)
+			s.handleExec(ch, req, authInfo)
 			return
 		default:
 			ch.Write([]byte(fmt.Sprintf("request type %q not allowed\r\n", req.Type)))
@@ -123,7 +124,7 @@ func (s *server) handleChanReq(chanReq ssh.NewChannel, publicKey string) {
 	}
 }
 
-func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, publicKey string) {
+func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, authInfo map[string]string) {
 	defer ch.Close()
 	args := strings.SplitN(string(req.Payload[4:]), " ", 2) //remove the 4 bytes of git protocol indicating line length
 	command := args[0]
@@ -137,7 +138,7 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, publicKey string) 
 			return
 		}
 
-		if err := gauth.Authenticate(publicKey, repoName); err != nil {
+		if err := gauth.Authenticate(authInfo["user"], authInfo["public_key"], repoName); err != nil {
 			writePktLine(fmt.Sprintf("github auth failed: %s", err), ch)
 			return
 		}

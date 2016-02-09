@@ -38,39 +38,40 @@ func NewGithubAuth() (*GithubAuth, error) {
 	}, nil
 }
 
-func (auth *GithubAuth) fetchWriteCollaborators(repo string) ([]github.User, error) {
+func (auth *GithubAuth) checkUserIsWriteCollaborator(user, repo string) error {
 	colls, _, err := auth.Client.Repositories.ListCollaborators(auth.Owner, repo, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	writeColls := []github.User{}
 	for _, coll := range colls {
-		if (*coll.Permissions)["push"] {
-			writeColls = append(writeColls, coll)
+		if (*coll.Login) == user && (*coll.Permissions)["push"] {
+			return nil
 		}
 	}
-	return writeColls, nil
+	return fmt.Errorf("not authorized to push on %s", repo)
 }
 
-func (auth *GithubAuth) Authenticate(pubKey, repo string) error {
-	colls, err := auth.fetchWriteCollaborators(repo)
+func (auth *GithubAuth) checkPublicKey(user, pubKey string) error {
+	keys, _, err := auth.Client.Users.ListKeys(user, nil)
 	if err != nil {
 		return err
 	}
 
-	for _, coll := range colls {
-		keys, _, err := auth.Client.Users.ListKeys(*coll.Login, nil)
-		if err != nil {
-			return err
-		}
-
-		for _, key := range keys {
-			if *key.Key == pubKey {
-				//auth successfull
-				return nil
-			}
+	//check if key match
+	keyMatch := false
+	for _, key := range keys {
+		keyMatch = (*key.Key == pubKey)
+		if keyMatch {
+			return nil
 		}
 	}
+	return fmt.Errorf("permission denied (public key)")
+}
 
-	return fmt.Errorf("not authorized to push on %s", repo)
+func (auth *GithubAuth) Authenticate(user, pubKey, repo string) error {
+	if err := auth.checkPublicKey(user, pubKey); err != nil {
+		return err
+	}
+
+	return auth.checkUserIsWriteCollaborator(user, repo)
 }
