@@ -40,4 +40,7 @@ clone() {
 # add depencies below
 clone git github.com/Sirupsen/logrus v0.8.7
 clone git github.com/fsouza/go-dockerclient
+
+go get github.com/google/go-github/github
 go get golang.org/x/crypto/ssh
+go get golang.org/x/oauth2

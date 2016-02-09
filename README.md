@@ -31,7 +31,15 @@ If you pass the `WEB_HOOK` env to the container, a HTTP PUT request with the fol
 ## Development
 
 - You can dockerize the app using `make dockerize` and then just start the container and push onto it
-- run integration tests using `make test`
+- run integration tests using `make integration`
+- run unit tests using `make tests`
+
+## Authentication
+
+Authentication can be achieved through github. Use the `GITHUB_AUTH=true` to activate the authentication. You will need two more env:
+
+- `GITHUB_AUTH_TOKEN` a [personal github access token](https://help.github.com/articles/creating-an-access-token-for-command-line-use)
+- `GITHUB_OWNER` basically your github organization name
 
 ## TODOs
 

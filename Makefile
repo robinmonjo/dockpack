@@ -1,6 +1,6 @@
 GOPATH:=`pwd`/vendor:$(GOPATH)
 GO:=$(shell which go)
-VERSION:=0.1
+VERSION:=0.2
 HARDWARE=$(shell uname -m)
 IMAGE_NAME=robinmonjo/dockpack
 
@@ -17,8 +17,11 @@ id_rsa:
 clean:
 	rm -rf ./dockpack ./release ./vendor/pkg
 	
-test: dockerize
+integration: dockerize
 	DOCKPACK_IMAGE=$(IMAGE_NAME):$(VERSION) GOPATH=$(GOPATH) bash -c 'cd integration && go test'
+	
+tests:
+	GOPATH=$(GOPATH) bash -c 'cd auth && go test'
 
 vendor:
 	GOPATH=`pwd`/vendor sh vendor.sh
