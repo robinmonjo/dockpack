@@ -41,7 +41,7 @@ Authentication can be achieved through github. Use the `GITHUB_AUTH=true` to act
 - `GITHUB_AUTH_TOKEN` a [personal github access token](https://help.github.com/articles/creating-an-access-token-for-command-line-use)
 - `GITHUB_OWNER` basically your github organization name
 
-## TODOs
+Note on authentication:
 
-Next steps:
-- authentication
+- ssh connection (git push) must be done with the github username of the person. You may need to set it in your remote (e.g: `ssh://<github_username>@<hostname>:<port>/<app_name>.git`)
+- name of the repo on dockpack must match with the one on github
