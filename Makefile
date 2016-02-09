@@ -1,6 +1,6 @@
 GOPATH:=`pwd`/vendor:$(GOPATH)
 GO:=$(shell which go)
-VERSION:=0.1
+VERSION:=0.2
 HARDWARE=$(shell uname -m)
 IMAGE_NAME=robinmonjo/dockpack
 
