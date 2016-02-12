@@ -25,9 +25,9 @@ type builder struct {
 }
 
 type buildResult struct {
-	Repo      string
-	ImageName string
-	ImageTag  string
+	Repo      string `json:"repo"`
+	ImageName string `json:"image_name"`
+	ImageTag  string `json:"image_tag"`
 }
 
 func newBuilder(w io.Writer, repo, ref string) (*builder, error) {
