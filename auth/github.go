@@ -14,10 +14,8 @@ const (
 )
 
 type GithubAuth struct {
-	Client  *github.Client
-	Owner   string
-	AppName string
-	PubKey  string
+	Client *github.Client
+	Owner  string
 }
 
 func NewGithubAuth() (*GithubAuth, error) {

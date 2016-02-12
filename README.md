@@ -23,8 +23,9 @@ If you pass the `WEB_HOOK` env to the container, a HTTP PUT request with the fol
 
 ````json
 {
-  "imageName": "<image_name>",
-  "imageTag": "<tag>"
+  "repo": "<repo_name>",
+  "image_name": "<image_name>",
+  "image_tag": "<image_tag>"
 }
 ````
 
@@ -45,3 +46,4 @@ Note on authentication:
 
 - ssh connection (git push) must be done with the github username of the person. You may need to set it in your remote (e.g: `ssh://<github_username>@<hostname>:<port>/<app_name>.git`)
 - name of the repo on dockpack must match with the one on github
+

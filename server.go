@@ -128,7 +128,7 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, authInfo map[strin
 	defer ch.Close()
 	args := strings.SplitN(string(req.Payload[4:]), " ", 2) //remove the 4 bytes of git protocol indicating line length
 	command := args[0]
-	repoName := strings.TrimSuffix(strings.TrimPrefix(args[1], "'/"), ".git'")
+	repo := strings.TrimSuffix(strings.TrimPrefix(args[1], "'/"), ".git'")
 
 	//auth the user
 	if os.Getenv("GITHUB_AUTH") == "true" {
@@ -138,7 +138,7 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, authInfo map[strin
 			return
 		}
 
-		if err := gauth.Authenticate(authInfo["user"], authInfo["public_key"], repoName); err != nil {
+		if err := gauth.Authenticate(authInfo["user"], authInfo["public_key"], repo); err != nil {
 			writePktLine(fmt.Sprintf("github auth failed: %s", err), ch)
 			return
 		}
@@ -160,9 +160,9 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, authInfo map[strin
 		return
 	}
 
-	log.Infof("receiving %s command for repo %s", command, repoName)
+	log.Infof("receiving %s command for repo %s", command, repo)
 
-	repoPath, err := s.prepareRepo(repoName)
+	repoPath, err := s.prepareRepo(repo)
 	if err != nil {
 		log.Errorf("unable to create repo: %v", err)
 		writePktLine(err.Error(), ch)
@@ -170,7 +170,7 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, authInfo map[strin
 	}
 
 	defer func() {
-		if err := s.unlockRepo(repoName); err != nil {
+		if err := s.unlockRepo(repo); err != nil {
 			log.Errorf("unable to unlock repo: %v", err)
 			writePktLine(err.Error(), ch)
 		}
@@ -195,53 +195,48 @@ func (s *server) handleExec(ch ssh.Channel, req *ssh.Request, authInfo map[strin
 	ch.SendRequest("exit-status", false, ssh.Marshal(exitStatus(syscallErr)))
 }
 
-func (s *server) prepareRepo(repoName string) (string, error) {
+func (s *server) prepareRepo(repo string) (string, error) {
 	var lock = &sync.Mutex{}
 	lock.Lock()
 	defer lock.Unlock()
 
-	repoPath, err := s.createRepoIfNeeded(repoName)
+	repoPath, err := s.createRepoIfNeeded(repo)
 	if err != nil {
 		return "", err
 	}
 
 	var err2 error
-	if err := s.lockRepo(repoName); err != nil {
+	if err := s.lockRepo(repo); err != nil {
 		return "", err
 	}
 	defer func() {
 		if err2 != nil {
-			if err := s.unlockRepo(repoName); err != nil {
+			if err := s.unlockRepo(repo); err != nil {
 				log.Errorf("unable to unlock repo: %v", err)
 			}
 		}
 	}()
 
 	//always inject pre-receive hook as http port may changes
-	err2 = s.injectPreReceiveHook(repoName)
+	err2 = s.injectPreReceiveHook(repo)
 	return repoPath, err2
 }
 
-func (s *server) createRepoIfNeeded(name string) (string, error) {
-	path := filepath.Join(s.workingDir, name)
+func (s *server) createRepoIfNeeded(repo string) (string, error) {
+	path := filepath.Join(s.workingDir, repo)
 
 	if _, err := os.Stat(path); err == nil {
 		return path, nil
 	}
 
-	cmd := exec.Command("git", "--git-dir="+path, "init", "--bare")
-	if err := cmd.Start(); err != nil {
+	if err := exec.Command("git", "--git-dir="+path, "init", "--bare").Run(); err != nil {
 		return "", err
 	}
-	if err := cmd.Wait(); err != nil {
-		return "", err
-	}
-
 	return path, nil
 }
 
-func (s *server) injectPreReceiveHook(appName string) error {
-	path := filepath.Join(s.workingDir, appName, "hooks", "pre-receive")
+func (s *server) injectPreReceiveHook(repo string) error {
+	path := filepath.Join(s.workingDir, repo, "hooks", "pre-receive")
 	if err := os.RemoveAll(path); err != nil {
 		return err
 	}
@@ -259,8 +254,8 @@ set -e
 while read old_ref new_ref ref_name
 do
   if [[ $ref_name = "refs/heads/master" ]]; then
-    git archive -o {{.ArchiveFolder}}/{{.AppName}}_$new_ref.tar $new_ref
-    curl -N -s -m 3600 -X PUT -H 'Content-Type: application/json' -d "{\"app_name\": \"{{.AppName}}\", \"ref\": \"$new_ref\"}" {{.Endpoint}} | tee {{.BuildLogs}}
+    git archive -o {{.ArchiveFolder}}/{{.Repo}}_$new_ref.tar $new_ref
+    curl -N -s -m 3600 -X PUT -H 'Content-Type: application/json' -d "{\"repo\": \"{{.Repo}}\", \"ref\": \"$new_ref\"}" {{.Endpoint}} | tee {{.BuildLogs}}
 		if grep -q "{{.BuildErrorPrefix}}" {{.BuildLogs}} ; then
 			exit 1
 		fi
@@ -270,7 +265,7 @@ done
 exit 0
   `
 	type hookData struct {
-		AppName          string
+		Repo             string
 		Endpoint         string
 		ArchiveFolder    string
 		BuildLogs        string
@@ -278,22 +273,22 @@ exit 0
 	}
 
 	data := hookData{
-		AppName:          appName,
+		Repo:             repo,
 		Endpoint:         fmt.Sprintf("localhost:%s", httpPort),
 		ArchiveFolder:    s.workingDir,
-		BuildLogs:        filepath.Join(s.workingDir, fmt.Sprintf("%s.log", appName)),
+		BuildLogs:        filepath.Join(s.workingDir, fmt.Sprintf("%s.log", repo)),
 		BuildErrorPrefix: buildErrorPrefix,
 	}
 
 	return template.Must(template.New("hook").Parse(script)).Execute(f, data)
 }
 
-func (s *server) lockFilePath(appName string) string {
-	return filepath.Join(s.workingDir, appName, lockFile)
+func (s *server) lockFilePath(repo string) string {
+	return filepath.Join(s.workingDir, repo, lockFile)
 }
 
-func (s *server) lockRepo(appName string) error {
-	lockFilePath := s.lockFilePath(appName)
+func (s *server) lockRepo(repo string) error {
+	lockFilePath := s.lockFilePath(repo)
 	if _, err := os.Stat(lockFilePath); err == nil {
 		return fmt.Errorf("repo is locked, try again later")
 	}
@@ -301,8 +296,8 @@ func (s *server) lockRepo(appName string) error {
 	return err
 }
 
-func (s *server) unlockRepo(appName string) error {
-	return os.RemoveAll(s.lockFilePath(appName))
+func (s *server) unlockRepo(repo string) error {
+	return os.RemoveAll(s.lockFilePath(repo))
 }
 
 func attachCmd(cmd *exec.Cmd, ch ssh.Channel) (*sync.WaitGroup, error) {

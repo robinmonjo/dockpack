@@ -1,8 +1,8 @@
 package integration
 
 import (
+	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"sync"
@@ -33,8 +33,20 @@ func TestGitPush(t *testing.T) {
 	wg.Add(1)
 
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		body, _ := ioutil.ReadAll(r.Body)
-		fmt.Println(string(body))
+		decoder := json.NewDecoder(r.Body)
+
+		var payload map[string]string
+
+		if err := decoder.Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, key := range []string{"repo", "image_name", "image_tag"} {
+			if payload[key] == "" {
+				t.Fatalf("expected key %q to exist in post build hook payload. Got %#v", key, payload)
+			}
+		}
+
 		wg.Done()
 	})
 
@@ -60,5 +72,3 @@ func TestGitPush(t *testing.T) {
 }
 
 //TODO: make sure only master branch is pushed
-
-//TODO: test web hook
