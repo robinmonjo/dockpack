@@ -18,28 +18,28 @@ const (
 )
 
 type builder struct {
-	client  *docker.Client
-	appName string
-	ref     string
-	writer  io.Writer
+	client *docker.Client
+	repo   string
+	ref    string
+	writer io.Writer
 }
 
 type buildResult struct {
-	AppName   string
+	Repo      string
 	ImageName string
 	ImageTag  string
 }
 
-func newBuilder(w io.Writer, appName, ref string) (*builder, error) {
+func newBuilder(w io.Writer, repo, ref string) (*builder, error) {
 	client, err := docker.NewClient(endpoint)
 	if err != nil {
 		return nil, err
 	}
 	return &builder{
-		client:  client,
-		appName: appName,
-		ref:     ref,
-		writer:  w,
+		client: client,
+		repo:   repo,
+		ref:    ref,
+		writer: w,
 	}, nil
 }
 
@@ -65,7 +65,7 @@ func (b *builder) build() (*buildResult, error) {
 	//create a container for the build
 	b.writer.Write([]byte("-----> Preparing build container\r\n"))
 	createOpts := docker.CreateContainerOptions{
-		Name: fmt.Sprintf("%s_%s", b.appName, b.ref),
+		Name: fmt.Sprintf("%s_%s", b.repo, b.ref),
 		Config: &docker.Config{
 			Image: fmt.Sprintf("%s:%s", buildImage, buildImageTag),
 			Cmd:   []string{"/build"},
@@ -90,11 +90,11 @@ func (b *builder) build() (*buildResult, error) {
 
 	//upload source code and cache (if any) inside the container
 	b.writer.Write([]byte("-----> Uploading sources and cache into the container\r\n"))
-	srcTarPath := filepath.Join("sandbox", fmt.Sprintf("%s_%s.tar", b.appName, b.ref))
+	srcTarPath := filepath.Join("sandbox", fmt.Sprintf("%s_%s.tar", b.repo, b.ref))
 	uploads := map[string]string{
 		srcTarPath: "/tmp/build",
 	}
-	cachePath := filepath.Join("sandbox", fmt.Sprintf("%s_cache.tar", b.appName))
+	cachePath := filepath.Join("sandbox", fmt.Sprintf("%s_cache.tar", b.repo))
 	if _, err := os.Stat(cachePath); err == nil {
 		//cache tar exists
 		uploads[cachePath] = "/tmp/"
@@ -171,7 +171,7 @@ func (b *builder) build() (*buildResult, error) {
 
 	//commit the container and upload the image, include a timestamp in the tag so it's ordered
 	tag := fmt.Sprintf("%d_%s", time.Now().Unix(), b.ref)
-	imgName := fmt.Sprintf("robinmonjo/%s", b.appName)
+	imgName := fmt.Sprintf("robinmonjo/%s", b.repo)
 	ciOpts := docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: imgName,
@@ -207,5 +207,5 @@ func (b *builder) build() (*buildResult, error) {
 		err = b.client.PushImage(pushOpts, authOpts)
 	}
 
-	return &buildResult{AppName: b.appName, ImageName: imgName, ImageTag: tag}, err
+	return &buildResult{Repo: b.repo, ImageName: imgName, ImageTag: tag}, err
 }

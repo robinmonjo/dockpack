@@ -39,8 +39,8 @@ func main() {
 		decoder := json.NewDecoder(r.Body)
 
 		type body struct {
-			AppName string `json:"app_name"`
-			Ref     string `json:"ref"`
+			Repo string `json:"repo"`
+			Ref  string `json:"ref"`
 		}
 		var b body
 		err := decoder.Decode(&b)
@@ -48,7 +48,7 @@ func main() {
 			log.Error(err)
 		}
 		log.Infof("Payload: %#v", b)
-		handleApp(w, b.AppName, b.Ref)
+		handleApp(w, b.Repo, b.Ref)
 	})
 
 	go func() {
@@ -81,15 +81,15 @@ func (fw *flushWriter) Write(p []byte) (n int, err error) {
 	return
 }
 
-func handleApp(w http.ResponseWriter, name, ref string) {
+func handleApp(w http.ResponseWriter, repo, ref string) {
 	fw := &flushWriter{w: w}
 	if f, ok := w.(http.Flusher); ok {
 		fw.f = f
 	}
 
 	//from here we should start the build and write output to w
-	fw.Write([]byte(fmt.Sprintf("starting build for app %s ref %s\n", name, ref)))
-	b, err := newBuilder(fw, name, ref)
+	fw.Write([]byte(fmt.Sprintf("starting build for repo %s ref %s\n", repo, ref)))
+	b, err := newBuilder(fw, repo, ref)
 	if err != nil {
 		log.Errorf("unable to instanciate builder: %v", err)
 		fw.Write([]byte(fmt.Sprintf("unable to instanciate builder: %v\n", err)))
@@ -112,9 +112,5 @@ func handleApp(w http.ResponseWriter, name, ref string) {
 		m := fmt.Sprintf("unable to notify hook %q: %v", hook, err)
 		log.Errorf(m)
 		fw.Write([]byte(m))
-		return
 	}
-
-	//build succeedeed
-
 }
