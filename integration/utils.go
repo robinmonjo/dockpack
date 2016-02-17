@@ -80,7 +80,7 @@ func startDockpack(port, dhUser, dhPasswd, webHook, image string) (string, error
 		"-e", fmt.Sprintf("DOCKER_HUB_USERNAME=%s", dhUser),
 		"-e", fmt.Sprintf("DOCKER_HUB_PASSWORD=%s", dhPasswd),
 		"-e", fmt.Sprintf("SSH_PORT=%s", port),
-		"-e", fmt.Sprintf("DOCKPACK_ENV=testing"),
+		"-e", "DOCKPACK_ENV=testing",
 		"-e", fmt.Sprintf("WEB_HOOK=%s", webHook),
 		"-v", "/var/run/docker.sock:/var/run/docker.sock",
 		"-p", fmt.Sprintf("%s:%s", port, port),
