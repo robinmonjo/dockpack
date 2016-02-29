@@ -67,6 +67,8 @@ func TestGitPush(t *testing.T) {
 		t.Fatalf("error: %v, output: %q", err, out)
 	}
 
+	fmt.Println(out)
+
 	//wait for the hook to be sent
 	wg.Wait()
 }

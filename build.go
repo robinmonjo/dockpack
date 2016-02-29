@@ -12,10 +12,23 @@ import (
 )
 
 const (
-	endpoint      = "unix:///var/run/docker.sock"
+	endpoint = "unix:///var/run/docker.sock"
+)
+
+var (
 	buildImage    = "gliderlabs/herokuish"
 	buildImageTag = "latest"
 )
+
+func init() {
+	if os.Getenv("BUILD_IMAGE") != "" {
+		buildImage = os.Getenv("BUILD_IMAGE")
+	}
+
+	if os.Getenv("BUILD_IMAGE_TAG") != "" {
+		buildImageTag = os.Getenv("BUILD_IMAGE_TAG")
+	}
+}
 
 type builder struct {
 	client *docker.Client
@@ -56,14 +69,14 @@ func (b *builder) build() (*buildResult, error) {
 		Tag:        buildImageTag,
 	}
 
-	b.writer.Write([]byte("-----> Pulling build image if required ...\r\n"))
+	b.logLine(fmt.Sprintf("-----> Pulling %s:%s image if required ...", buildImage, buildImageTag))
 
 	if err := b.client.PullImage(pullOpts, authOpts); err != nil {
 		return nil, err
 	}
 
 	//create a container for the build
-	b.writer.Write([]byte("-----> Preparing build container\r\n"))
+	b.logLine("-----> Preparing build container")
 	createOpts := docker.CreateContainerOptions{
 		Name: fmt.Sprintf("%s_%s", b.repo, b.ref),
 		Config: &docker.Config{
@@ -89,7 +102,7 @@ func (b *builder) build() (*buildResult, error) {
 	}()
 
 	//upload source code and cache (if any) inside the container
-	b.writer.Write([]byte("-----> Uploading sources and cache into the container\r\n"))
+	b.logLine("-----> Uploading sources and cache into the container")
 	srcTarPath := filepath.Join("sandbox", fmt.Sprintf("%s_%s.tar", b.repo, b.ref))
 	uploads := map[string]string{
 		srcTarPath: "/tmp/build",
@@ -152,7 +165,7 @@ func (b *builder) build() (*buildResult, error) {
 	}
 
 	//save the cache for next build
-	b.writer.Write([]byte("-----> Saving cache for next build\r\n"))
+	b.logLine("-----> Saving cache for next build")
 	if err := os.RemoveAll(cachePath); err != nil {
 		return nil, err
 	}
@@ -171,7 +184,7 @@ func (b *builder) build() (*buildResult, error) {
 
 	//commit the container and upload the image, include a timestamp in the tag so it's ordered
 	tag := fmt.Sprintf("%d_%s", time.Now().Unix(), b.ref)
-	imgName := fmt.Sprintf("robinmonjo/%s", b.repo)
+	imgName := fmt.Sprintf("%s/%s", authOpts.Username, b.repo)
 	ciOpts := docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: imgName,
@@ -199,13 +212,17 @@ func (b *builder) build() (*buildResult, error) {
 		Tag:  tag,
 	}
 
-	b.writer.Write([]byte(fmt.Sprintf("-----> Pushing image %s:%s to the registry (this may takes some times)\r\n", imgName, tag)))
+	b.logLine(fmt.Sprintf("-----> Pushing image %s:%s to the registry (this may takes some times)", imgName, tag))
 
 	if os.Getenv("DOCKPACK_ENV") == "testing" {
-		b.writer.Write([]byte(fmt.Sprintf("-----> Test, skipping push\r\n", imgName, tag)))
+		b.logLine(fmt.Sprintf("-----> Test, skipping push\r\n", imgName, tag))
 	} else {
 		err = b.client.PushImage(pushOpts, authOpts)
 	}
 
 	return &buildResult{Repo: b.repo, ImageName: imgName, ImageTag: tag}, err
+}
+
+func (b *builder) logLine(line string) {
+	b.writer.Write([]byte(line + "\r\n"))
 }
