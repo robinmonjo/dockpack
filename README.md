@@ -2,11 +2,11 @@
 
 ## Running
 
-To run dockpack, you may pull the last image from the docker-hub (see Makefile for latest version) robinmonjo/dockpack:v, and start it with this command:
+To run `dockpack`, you may pull the last image from the docker-hub (see Makefile for latest version) robinmonjo/dockpack:v, and start it with this command:
 
 ````bash
 mkdir /home/ubuntu/sandbox
-docker run -e DOCKER_HUB_USERNAME="xxx" -e DOCKER_HUB_PASSWORD="yyy" -e SSH_PORT=2222 -v /var/run/docker.sock:/var/run/docker.sock -v /home/ubuntu/sandbox:/sandbox -p $PORT:$PORT robinmonjo/dockpack:1.0
+docker run -e DOCKER_HUB_USERNAME="xxx" -e DOCKER_HUB_PASSWORD="yyy" -e SSH_PORT=2222 -v /var/run/docker.sock:/var/run/docker.sock -v /home/ubuntu/sandbox:/sandbox -p 2222:2222 robinmonjo/dockpack:1.0
 ````
 
 This will start a git server listening on 2222. You can then add it as a remote on one of your project:
@@ -47,3 +47,9 @@ Note on authentication:
 - ssh connection (git push) must be done with the github username of the person. You may need to set it in your remote (e.g: `ssh://<github_username>@<hostname>:<port>/<app_name>.git`)
 - name of the repo on dockpack must match with the one on github
 
+## Custom build image
+
+`dockpack` relies on [herokuish](https://github.com/gliderlabs/herokuish) and therefore uses the [gliderlabs/herokuish](https://hub.docker.com/r/gliderlabs/herokuish/) docker image to pack your app. However you may need to customize this image ([example](https://github.com/applidget/dcdget-herokuish)). To pass you own image, you can set these environment variables:
+
+- `BUILD_IMAGE` (default to `gliderlabs/herokuish`)
+- `BUILD_IMAGE_TAG` (default to `latest`)

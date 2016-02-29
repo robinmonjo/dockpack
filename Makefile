@@ -1,6 +1,6 @@
 GOPATH:=`pwd`/vendor:$(GOPATH)
 GO:=$(shell which go)
-VERSION:=0.2
+VERSION:=0.3
 HARDWARE=$(shell uname -m)
 IMAGE_NAME=robinmonjo/dockpack
 
@@ -10,6 +10,9 @@ build: vendor id_rsa
 dockerize: id_rsa
 	GOPATH=$(GOPATH) GOOS=linux $(GO) build -ldflags="-X main.version=$(VERSION)"
 	docker build -t $(IMAGE_NAME):$(VERSION) .
+	
+publish: dockerize
+	docker push $(IMAGE_NAME):$(VERSION)
 	
 id_rsa:
 	ssh-keygen -t rsa -b 2048 -C "dockpack@mail.com" -f id_rsa -N ""
