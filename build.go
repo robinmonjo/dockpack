@@ -184,7 +184,7 @@ func (b *builder) build() (*buildResult, error) {
 
 	//commit the container and upload the image, include a timestamp in the tag so it's ordered
 	tag := fmt.Sprintf("%d_%s", time.Now().Unix(), b.ref)
-	imgName := fmt.Sprintf("%s/%s", authOpts.Username, b.repo)
+	imgName := fmt.Sprintf("%s/%s", os.Getenv("IMAGE_NAMESPACE"), b.repo)
 	ciOpts := docker.CommitContainerOptions{
 		Container:  container.ID,
 		Repository: imgName,

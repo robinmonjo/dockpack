@@ -56,7 +56,7 @@ func TestGitPush(t *testing.T) {
 		}
 	}()
 
-	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
+	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), os.Getenv("IMAGE_NAMESPACE"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
 	if err != nil {
 		t.Fatal(err)
 	}

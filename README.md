@@ -6,10 +6,15 @@ To run `dockpack`, you may pull the last image from the docker-hub (see Makefile
 
 ````bash
 mkdir /home/ubuntu/sandbox
-docker run -e DOCKER_HUB_USERNAME="xxx" -e DOCKER_HUB_PASSWORD="yyy" -e SSH_PORT=2222 -v /var/run/docker.sock:/var/run/docker.sock -v /home/ubuntu/sandbox:/sandbox -p 2222:2222 robinmonjo/dockpack:1.0
+docker run -e DOCKER_HUB_USERNAME="xxx" -e DOCKER_HUB_PASSWORD="yyy" -e IMAGE_NAMESPACE="company_name" -e SSH_PORT=2222 -v /var/run/docker.sock:/var/run/docker.sock -v /home/ubuntu/sandbox:/sandbox -p 2222:2222 robinmonjo/dockpack:1.0
 ````
 
-This will start a git server listening on 2222. You can then add it as a remote on one of your project:
+This will start a git server listening on 2222 with these options:
+
+- `DOCKER_HUB_USERNAME` / `DOCKER_HUB_PASSWORD` refers to the credentials to the registry you wan to push to
+- `IMAGE_NAMESPACE` refers to the namespace of the image (i.e: `<this part>/my_image:my_tag`)
+
+You can then add it as a remote on one of your project:
 
 ````bash
 cd my/super/project
