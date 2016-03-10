@@ -77,8 +77,8 @@ func pushDockpack(repo string) (string, error) {
 
 func startDockpack(port, dhUser, dhPasswd, namespace, webHook, image string) (string, error) {
 	return docker("run",
-		"-e", fmt.Sprintf("DOCKER_HUB_USERNAME=%s", dhUser),
-		"-e", fmt.Sprintf("DOCKER_HUB_PASSWORD=%s", dhPasswd),
+		"-e", fmt.Sprintf("REGISTRY_USERNAME=%s", dhUser),
+		"-e", fmt.Sprintf("REGISTRY_PASSWORD=%s", dhPasswd),
 		"-e", fmt.Sprintf("IMAGE_NAMESPACE=%s", namespace),
 		"-e", fmt.Sprintf("SSH_PORT=%s", port),
 		"-e", "DOCKPACK_ENV=testing",

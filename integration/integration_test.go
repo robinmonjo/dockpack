@@ -16,7 +16,7 @@ const (
 // test a full git push without going through the push image process
 func TestGitPush(t *testing.T) {
 
-	for _, env := range []string{"DOCKER_H", "DOCKER_HUB_USERNAME", "DOCKER_HUB_PASSWORD", "DOCKPACK_IMAGE"} {
+	for _, env := range []string{"DOCKER_H", "REGISTRY_USERNAME", "REGISTRY_PASSWORD", "DOCKPACK_IMAGE"} {
 		if os.Getenv(env) == "" {
 			t.Fatalf("Missing %s env var", env)
 		}
@@ -56,7 +56,7 @@ func TestGitPush(t *testing.T) {
 		}
 	}()
 
-	contID, err := startDockpack(sshPort, os.Getenv("DOCKER_HUB_USERNAME"), os.Getenv("DOCKER_HUB_PASSWORD"), os.Getenv("IMAGE_NAMESPACE"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
+	contID, err := startDockpack(sshPort, os.Getenv("REGISTRY_USERNAME"), os.Getenv("REGISTRY_PASSWORD"), os.Getenv("IMAGE_NAMESPACE"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -18,16 +18,47 @@ const (
 var (
 	buildImage    = "gliderlabs/herokuish"
 	buildImageTag = "latest"
+
+	pullAuthOpts docker.AuthConfiguration
+	pushAuthOpts docker.AuthConfiguration
 )
 
 func init() {
-	if os.Getenv("BUILD_IMAGE") != "" {
-		buildImage = os.Getenv("BUILD_IMAGE")
+	if image := os.Getenv("BUILD_IMAGE"); image != "" {
+		buildImage = image
 	}
 
-	if os.Getenv("BUILD_IMAGE_TAG") != "" {
-		buildImageTag = os.Getenv("BUILD_IMAGE_TAG")
+	if tag := os.Getenv("BUILD_IMAGE_TAG"); tag != "" {
+		buildImageTag = tag
 	}
+
+	//pull auth (to get the build image)
+	pullAuthOpts = docker.AuthConfiguration{
+		Username:      os.Getenv("PULL_REGISTRY_USERNAME"),
+		Password:      os.Getenv("PULL_REGISTRY_PASSWORD"),
+		ServerAddress: os.Getenv("PULL_REGISTRY_SERVER"), //if empty will use default docker hub
+	}
+
+	//push auth (to push the built image)
+	pushAuthOpts = docker.AuthConfiguration{}
+	if username := os.Getenv("PUSH_REGISTRY_USERNAME"); username != "" {
+		pushAuthOpts.Username = username
+	} else {
+		pushAuthOpts.Username = pullAuthOpts.Username
+	}
+
+	if pwd := os.Getenv("PUSH_REGISTRY_PASSWORD"); pwd != "" {
+		pushAuthOpts.Password = pwd
+	} else {
+		pushAuthOpts.Password = pullAuthOpts.Password
+	}
+
+	if server := os.Getenv("PUSH_REGISTRY_SERVER"); server != "" {
+		pushAuthOpts.ServerAddress = server
+	} else {
+		pushAuthOpts.ServerAddress = pullAuthOpts.ServerAddress
+	}
+
 }
 
 type builder struct {
@@ -59,11 +90,6 @@ func newBuilder(w io.Writer, repo, ref string) (*builder, error) {
 func (b *builder) build() (*buildResult, error) {
 
 	//check if herokuish latest exists
-	authOpts := docker.AuthConfiguration{
-		Username: os.Getenv("DOCKER_HUB_USERNAME"),
-		Password: os.Getenv("DOCKER_HUB_PASSWORD"),
-	}
-
 	pullOpts := docker.PullImageOptions{
 		Repository: buildImage,
 		Tag:        buildImageTag,
@@ -71,7 +97,7 @@ func (b *builder) build() (*buildResult, error) {
 
 	b.logLine(fmt.Sprintf("-----> Pulling %s:%s image if required ...", buildImage, buildImageTag))
 
-	if err := b.client.PullImage(pullOpts, authOpts); err != nil {
+	if err := b.client.PullImage(pullOpts, pullAuthOpts); err != nil {
 		return nil, err
 	}
 
@@ -217,7 +243,7 @@ func (b *builder) build() (*buildResult, error) {
 	if os.Getenv("DOCKPACK_ENV") == "testing" {
 		b.logLine(fmt.Sprintf("-----> Test, skipping push\r\n", imgName, tag))
 	} else {
-		err = b.client.PushImage(pushOpts, authOpts)
+		err = b.client.PushImage(pushOpts, pushAuthOpts)
 	}
 
 	return &buildResult{Repo: b.repo, ImageName: imgName, ImageTag: tag}, err
