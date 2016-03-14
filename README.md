@@ -49,9 +49,15 @@ If you pass the `WEB_HOOK` env to the container, a HTTP PUT request with the fol
 {
   "repo": "<repo_name>",
   "image_name": "<image_name>",
-  "image_tag": "<image_tag>"
+  "image_tag": "<image_tag>",
+  "procfile": {
+    "web": "bundle exec rails s",
+    "worker" : "<some worker>"
+  }
 }
 ````
+
+Note: `procfile` section may be empty if no procfile in the project
 
 ## Authentication
 
