@@ -255,6 +255,8 @@ while read old_ref new_ref ref_name
 do
   if [[ $ref_name = "refs/heads/master" ]]; then
     git archive -o {{.ArchiveFolder}}/{{.Repo}}_$new_ref.tar $new_ref
+		mkdir -p {{.ArchiveFolder}}/{{.Repo}}_clone
+		tar xf {{.ArchiveFolder}}/{{.Repo}}_$new_ref.tar -C {{.ArchiveFolder}}/{{.Repo}}_clone
     curl -N -s -m 3600 -X PUT -H 'Content-Type: application/json' -d "{\"repo\": \"{{.Repo}}\", \"ref\": \"$new_ref\"}" {{.Endpoint}} | tee {{.BuildLogs}}
 		if grep -q "{{.BuildErrorPrefix}}" {{.BuildLogs}} ; then
 			exit 1

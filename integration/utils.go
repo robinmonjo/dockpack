@@ -65,7 +65,10 @@ func mockRubyApp(dir string) error {
 	if err := ioutil.WriteFile(filepath.Join(dir, "Gemfile.lock"), []byte(""), 0777); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filepath.Join(dir, "Gemfile"), []byte("source 'https://rubygems.org'\nruby '2.2.3'"), 0777)
+	if err := ioutil.WriteFile(filepath.Join(dir, "Gemfile"), []byte("source 'https://rubygems.org'\nruby '2.2.3'"), 0777); err != nil {
+		return err
+	}
+	return ioutil.WriteFile(filepath.Join(dir, "Procfile"), []byte("web: bundle exec rails s\nworker: bundle exec rake worker"), 0777)
 }
 
 func pushDockpack(repo string) (string, error) {
@@ -77,8 +80,8 @@ func pushDockpack(repo string) (string, error) {
 
 func startDockpack(port, dhUser, dhPasswd, namespace, webHook, image string) (string, error) {
 	return docker("run",
-		"-e", fmt.Sprintf("REGISTRY_USERNAME=%s", dhUser),
-		"-e", fmt.Sprintf("REGISTRY_PASSWORD=%s", dhPasswd),
+		"-e", fmt.Sprintf("PULL_REGISTRY_USERNAME=%s", dhUser),
+		"-e", fmt.Sprintf("PULL_REGISTRY_PASSWORD=%s", dhPasswd),
 		"-e", fmt.Sprintf("IMAGE_NAMESPACE=%s", namespace),
 		"-e", fmt.Sprintf("SSH_PORT=%s", port),
 		"-e", "DOCKPACK_ENV=testing",

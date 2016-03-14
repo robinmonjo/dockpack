@@ -16,7 +16,7 @@ const (
 // test a full git push without going through the push image process
 func TestGitPush(t *testing.T) {
 
-	for _, env := range []string{"DOCKER_H", "REGISTRY_USERNAME", "REGISTRY_PASSWORD", "DOCKPACK_IMAGE"} {
+	for _, env := range []string{"DOCKER_H", "PULL_REGISTRY_USERNAME", "PULL_REGISTRY_PASSWORD", "DOCKPACK_IMAGE", "IMAGE_NAMESPACE"} {
 		if os.Getenv(env) == "" {
 			t.Fatalf("Missing %s env var", env)
 		}
@@ -35,14 +35,18 @@ func TestGitPush(t *testing.T) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		decoder := json.NewDecoder(r.Body)
 
-		var payload map[string]string
+		var payload map[string]interface{}
 
 		if err := decoder.Decode(&payload); err != nil {
+			wg.Done()
 			t.Fatal(err)
 		}
 
-		for _, key := range []string{"repo", "image_name", "image_tag"} {
+		fmt.Printf("payload: %#v", payload)
+
+		for _, key := range []string{"repo", "image_name", "image_tag", "procfile"} {
 			if payload[key] == "" {
+				wg.Done()
 				t.Fatalf("expected key %q to exist in post build hook payload. Got %#v", key, payload)
 			}
 		}
@@ -56,7 +60,7 @@ func TestGitPush(t *testing.T) {
 		}
 	}()
 
-	contID, err := startDockpack(sshPort, os.Getenv("REGISTRY_USERNAME"), os.Getenv("REGISTRY_PASSWORD"), os.Getenv("IMAGE_NAMESPACE"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
+	contID, err := startDockpack(sshPort, os.Getenv("PULL_REGISTRY_USERNAME"), os.Getenv("PULL_REGISTRY_PASSWORD"), os.Getenv("IMAGE_NAMESPACE"), "http://192.168.99.1:9999", os.Getenv("DOCKPACK_IMAGE"))
 	if err != nil {
 		t.Fatal(err)
 	}

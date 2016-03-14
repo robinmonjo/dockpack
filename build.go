@@ -1,10 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	log "github.com/Sirupsen/logrus"
@@ -69,9 +71,10 @@ type builder struct {
 }
 
 type buildResult struct {
-	Repo      string `json:"repo"`
-	ImageName string `json:"image_name"`
-	ImageTag  string `json:"image_tag"`
+	Repo      string            `json:"repo"`
+	ImageName string            `json:"image_name"`
+	ImageTag  string            `json:"image_tag"`
+	Procfile  map[string]string `json:"procfile,omitempty"`
 }
 
 func newBuilder(w io.Writer, repo, ref string) (*builder, error) {
@@ -243,10 +246,39 @@ func (b *builder) build() (*buildResult, error) {
 	if os.Getenv("DOCKPACK_ENV") == "testing" {
 		b.logLine(fmt.Sprintf("-----> Test, skipping push\r\n", imgName, tag))
 	} else {
-		err = b.client.PushImage(pushOpts, pushAuthOpts)
+		if err := b.client.PushImage(pushOpts, pushAuthOpts); err != nil {
+			return nil, err
+		}
 	}
 
-	return &buildResult{Repo: b.repo, ImageName: imgName, ImageTag: tag}, err
+	procfile, err := b.parseProcfile()
+	if err != nil {
+		b.logLine(fmt.Sprintf("No Procfile found or Procfile mal formated: %v", err))
+	}
+
+	fmt.Println(procfile)
+
+	return &buildResult{Repo: b.repo, ImageName: imgName, ImageTag: tag, Procfile: procfile}, nil
+}
+
+func (b *builder) parseProcfile() (map[string]string, error) {
+	procfile := filepath.Join("sandbox", fmt.Sprintf("%s_clone", b.repo), "Procfile")
+
+	file, err := os.Open(procfile)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	res := make(map[string]string)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		comps := strings.SplitN(line, ":", 2)
+		res[comps[0]] = comps[1]
+	}
+
+	return res, scanner.Err()
 }
 
 func (b *builder) logLine(line string) {
