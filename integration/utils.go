@@ -68,7 +68,7 @@ func mockRubyApp(dir string) error {
 	if err := ioutil.WriteFile(filepath.Join(dir, "Gemfile"), []byte("source 'https://rubygems.org'\nruby '2.2.3'"), 0777); err != nil {
 		return err
 	}
-	return ioutil.WriteFile(filepath.Join(dir, "Procfile"), []byte("web: bundle exec rails s\nworker: bundle exec rake worker"), 0777)
+	return ioutil.WriteFile(filepath.Join(dir, "Procfile"), []byte("web: bundle exec rails s\nworker: bundle exec rake worker\n\n"), 0777)
 }
 
 func pushDockpack(repo string) (string, error) {

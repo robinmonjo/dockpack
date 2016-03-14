@@ -274,8 +274,10 @@ func (b *builder) parseProcfile() (map[string]string, error) {
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := scanner.Text()
-		comps := strings.SplitN(line, ":", 2)
-		res[comps[0]] = comps[1]
+		if len(line) > 0 {
+			comps := strings.SplitN(line, ":", 2)
+			res[comps[0]] = comps[1]
+		}
 	}
 
 	return res, scanner.Err()
